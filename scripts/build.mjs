@@ -1,0 +1,11 @@
+import { mkdir, copyFile, writeFile } from 'node:fs/promises';
+import { build } from 'esbuild';
+const url = process.env.SUPABASE_URL;
+const key = process.env.SUPABASE_PUBLISHABLE_KEY;
+if (!url || !key) throw new Error('Set SUPABASE_URL and SUPABASE_PUBLISHABLE_KEY in Vercel Environment Variables.');
+if (!/^https:\/\/[a-z0-9-]+\.supabase\.co$/.test(url)) throw new Error('Expected an HTTPS Supabase project URL.');
+if (!key.startsWith('sb_publishable_')) throw new Error('Use a Supabase publishable key, never a secret or service-role key.');
+await mkdir('dist', { recursive: true });
+await Promise.all(['index.html', 'style.css', 'icon.svg'].map(file => copyFile(`public/${file}`, `dist/${file}`)));
+await writeFile('dist/config.js', `window.EMAIL_DIGEST_CONFIG = ${JSON.stringify({url,key})};\n`);
+await build({ entryPoints:['src/app.js'], bundle:true, minify:true, outfile:'dist/app.js', format:'esm', target:['es2022'] });

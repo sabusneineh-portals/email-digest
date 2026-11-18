@@ -1,0 +1,4 @@
+import test from 'node:test';import assert from 'node:assert/strict';import {matchesFilters,allowedEmails} from '../src/filters.js';
+const row={sender_name:'Example Team',sender_email:'team@example.com',subject:'Project meeting',summary:'Please review the agenda.',category:'Meeting',priority:'High'};
+test('search and filters work together',()=>{assert.equal(matchesFilters(row,{search:' AGENDA ',category:'Meeting',priority:'High'}),true);assert.equal(matchesFilters(row,{search:'agenda',category:'Request'}),false);assert.equal(matchesFilters(row,{priority:'Low'}),false);assert.equal(matchesFilters(row,{search:'team@example.com'}),true);assert.equal(matchesFilters(row,{search:'missing'}),false);});
+test('only the four requested addresses pass the sign-in screen',()=>{assert.equal(allowedEmails.length,4);assert.equal(allowedEmails.includes('outsider@example.com'),false);assert.equal(allowedEmails.includes('n.mahmoud@xpandpros.com'),true);});
