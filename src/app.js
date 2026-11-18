@@ -36,7 +36,7 @@ async function load(reset=false){
 async function showSession(session){
   clearPrivateView();if(!session)return;const current=generation;
   try{
-    const {data:{user},error}=await client.auth.getUser();if(current!==generation)return;if(error||!user){$('login-status').textContent='Your sign-in link or session has expired. Please request a new link.';return;}
+    const {data:{user},error}=await client.auth.getUser();if(current!==generation)return;if(error||!user){$('login-status').textContent='Your session has expired. Please sign in again.';return;}
     const {data:member,error:memberError}=await client.from('allowed_users').select('email,full_name,role').eq('email',user.email.toLowerCase()).maybeSingle();
     if(current!==generation)return;if(memberError)throw memberError;
     if(!member){$('login-status').textContent='You do not have access';await client.auth.signOut();return;}
@@ -45,12 +45,16 @@ async function showSession(session){
 }
 $('login-form').addEventListener('submit',async event=>{
   event.preventDefault();const email=$('email').value.trim().toLowerCase();
-  if(!allowedEmails.includes(email)){$('login-status').textContent='You do not have access';return;}
+  if(!allowedEmails.includes(email)){$('password').value='';$('login-status').textContent='You do not have access';return;}
   if(!client){$('login-status').textContent='Sign-in is unavailable. Please reload and try again.';return;}
-  $('send-link').disabled=true;$('login-status').textContent='Sending your sign-in link…';
-  try{const {error}=await client.auth.signInWithOtp({email,options:{emailRedirectTo:window.location.origin+'/'}});if(error)throw error;$('login-status').textContent='Check your email for a secure sign-in link. Open it to enter Email Digest.';}
-  catch{$('login-status').textContent='Could not send the sign-in link. Please try again later or contact your administrator.';}
-  finally{$('send-link').disabled=false;}
+  $('sign-in').disabled=true;$('login-status').textContent='Signing in…';
+  try{
+    const {data,error}=await client.auth.signInWithPassword({email,password:$('password').value});
+    if(error)throw error;
+    await showSession(data.session);
+  }
+  catch(error){$('login-status').textContent=error.code==='invalid_credentials'?'Email or password is incorrect.':error.code==='email_not_confirmed'?'Your email needs to be confirmed. Please contact your administrator.':'Could not sign in. Please try again or contact your administrator.';}
+  finally{$('password').value='';$('sign-in').disabled=false;}
 });
 $('sign-out').addEventListener('click',async()=>{clearPrivateView();await client.auth.signOut();});
 $('refresh').addEventListener('click',()=>load(true));$('load-more').addEventListener('click',()=>load());
@@ -58,8 +62,7 @@ for(const id of ['search','category','priority'])$(id).addEventListener('input',
 $('clear').addEventListener('click',()=>{for(const id of ['search','category','priority'])$(id).value='';render();});
 try{
   const {url,key}=window.EMAIL_DIGEST_CONFIG||{};if(!url||!key)throw new Error('Missing configuration');
-  client=createClient(url,key,{auth:{persistSession:true,autoRefreshToken:true,detectSessionInUrl:true}});
+  client=createClient(url,key,{auth:{persistSession:true,autoRefreshToken:true,detectSessionInUrl:false}});
   client.auth.onAuthStateChange((event,session)=>{if(['SIGNED_IN','SIGNED_OUT','TOKEN_REFRESHED','USER_UPDATED'].includes(event))setTimeout(()=>showSession(session),0);});
   const {data:{session},error}=await client.auth.getSession();if(error)throw error;await showSession(session);
-  if(window.location.hash.includes('error')){$('login-status').textContent='Your sign-in link is invalid or expired. Please request a new link.';history.replaceState(null,'','/');}
 }catch{$('login-status').textContent='Sign-in could not start. Please reload or contact your administrator.';}
