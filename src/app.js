@@ -1,9 +1,10 @@
 import { createClient } from '@supabase/supabase-js';
 import { matchesFilters, allowedEmails } from './filters.js';
+import { originalEmailUrl } from './email-links.js';
 const $ = id => document.getElementById(id);
 let client, rows=[], offset=0, more=true, generation=0;
 const pageSize=100;
-const columns='id,sender_name,sender_email,subject,received_at,summary,category,priority,action_needed,created_at';
+const columns='id,sender_name,sender_email,receiver_email,gmail_message_id,subject,received_at,summary,category,priority,action_needed,created_at';
 function clearPrivateView(){generation++;rows=[];offset=0;more=true;$('cards').replaceChildren();$('digest-view').hidden=true;$('login-view').hidden=false;$('sign-out').hidden=true;$('user-name').textContent='';for(const id of ['total','actions','high'])$(id).textContent='0';}
 function node(tag,cls,text){const el=document.createElement(tag);if(cls)el.className=cls;if(text!==undefined)el.textContent=text;return el;}
 function render(){
@@ -13,11 +14,20 @@ function render(){
   const dateFormat=new Intl.DateTimeFormat('en',{month:'short',day:'numeric'});
   for(const row of filtered){
     const card=node('article','card'),top=node('div','card-top'),sender=node('div','sender');
-    top.append(node('div','avatar',row.sender_name.trim().slice(0,2).toUpperCase()));sender.append(node('div','sender-name',row.sender_name),node('div','sender-email',row.sender_email));top.append(sender);
+    top.append(node('div','avatar',row.sender_name.trim().slice(0,2).toUpperCase()));sender.append(node('div','sender-name',row.sender_name));top.append(sender);
     const date=node('time','date',dateFormat.format(new Date(row.received_at)));date.dateTime=row.received_at;date.title=new Date(row.received_at).toLocaleString('en');top.append(date);
     const summary=node('p','summary',row.summary);summary.title=row.summary;
     const bottom=node('div','card-bottom');bottom.append(node('span','badge',row.category),node('span',`badge priority ${row.priority}`,`${row.priority} priority`),node('span',`action${row.action_needed?'':' no'}`,row.action_needed?'↗ Action needed':'No action needed'));
-    card.append(top,node('h3','',row.subject),summary,bottom);$('cards').append(card);
+    const addresses=node('dl','email-addresses');
+    addresses.append(node('dt','','From'),node('dd','',row.sender_email),node('dt','','To'),node('dd','',row.receiver_email||'Not recorded'));
+    card.append(top,node('h3','',row.subject),addresses,summary,bottom);
+    const originalUrl=originalEmailUrl(row);
+    if(originalUrl){
+      const original=node('a','original-email','Open original email in Gmail ↗');original.href=originalUrl;original.target='_blank';original.rel='noopener noreferrer';
+      original.setAttribute('aria-label',`Open original email in Gmail: ${row.subject} (opens in a new tab)`);
+      card.append(original,node('p','gmail-note',"Requires access to the recipient’s Gmail mailbox."));
+    }
+    $('cards').append(card);
   }
   $('digest-status').textContent=filtered.length?'':rows.length?'No summaries match your filters.':'No summaries yet. Inbox summaries will appear here after an import.';
   $('load-more').hidden=!more;

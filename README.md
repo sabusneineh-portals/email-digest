@@ -6,7 +6,7 @@ A small private portal built with plain HTML, CSS, JavaScript, and Supabase. No 
 
 1. In ChatGPT, search Gmail with `in:inbox` and the `INBOX` label. Read individual matching messages, never whole threads or attachments. Check each message still has the INBOX label before importing it.
 2. ChatGPT writes a brief English summary and classifies category, priority, and whether action is needed. These classifications are judgments, so review important items in Gmail.
-3. Save only the sender, redacted subject, received date, short summary, category, priority, and action flag in Supabase. Omit authentication codes, secrets, full bodies, and attachments.
+3. Save only the sender, redacted subject, receiver address, Gmail message reference, received date, short summary, category, priority, and action flag in Supabase. Omit authentication codes, secrets, full bodies, and attachments.
 4. The portal signs users in through Supabase email and password and checks their allowlist entry. Supabase RLS independently protects every database read.
 5. GitHub stores the source. Vercel builds and hosts the static portal.
 
@@ -17,7 +17,7 @@ The ChatGPT Gmail connector is not embedded in this website. Refresh summaries r
 | Table | Purpose |
 | --- | --- |
 | allowed_users | The four permitted email addresses, names, and admin/viewer roles. |
-| email_summaries | Sender name/email, subject, received_at, summary (1–350 characters), category, priority, action_needed (boolean), created_at, and a generated row ID. |
+| email_summaries | Sender name/email, receiver_email, gmail_message_id, subject, received_at, summary (1–350 characters), category, priority, action_needed (boolean), created_at, and a generated row ID. |
 
 `database/schema.sql` records the existing schema and policies as a fresh-project setup reference. The Portal test project already had these tables; they were inspected and reused. Do not blindly run the reference against an existing database.
 
@@ -52,3 +52,7 @@ Install with `npm ci`, set the two environment variables in your terminal, then 
 Check allowed-user SELECT returns the summaries and only their own allowlist entry; outsider SELECT returns no rows; anonymous SELECT and browser-role writes are denied. Check a real allowed account can sign in with email and password, shows cards, supports search and both filters, and clears all visible cards on sign-out. Check wrong passwords fail and outsiders see “You do not have access”. Token expiry and failed requests should show a recoverable message. New data is loaded newest first, in pages of 100; search and counts cover loaded rows, and Load more summaries retrieves the next page.
 
 Imports check sender_email + subject + received_at before inserting to avoid duplicates in sequential manual runs. There is no Gmail message ID column or unique import constraint in this deliberately simple two-table design, so do not run concurrent imports.
+
+## Original emails
+
+Cards display explicit From and To addresses and an Open original email in Gmail link. Only the Gmail message reference and receiver address are stored; the original body remains in Gmail. The link selects the recipient mailbox and requires Gmail access to that mailbox. Being allowed into this portal does not grant Gmail mailbox access. New imports should include the actual recipient mailbox and message ID. Rows without a message reference show no original-email link.

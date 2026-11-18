@@ -9,6 +9,8 @@ create table public.email_summaries (
   id bigint generated always as identity primary key,
   sender_name text not null,
   sender_email text not null,
+  receiver_email text,
+  gmail_message_id text check (gmail_message_id is null or gmail_message_id ~ '^[0-9a-f]{10,32}$'),
   subject text not null,
   received_at timestamptz not null,
   summary text not null check (char_length(summary) between 1 and 350),
